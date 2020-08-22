@@ -41,16 +41,21 @@
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
+I2C_HandleTypeDef hi2c2;
 
 /* USER CODE BEGIN PV */
-float HTU21D_Temperature;
-float HTU21D_Humidity;
-Si7021 sensor = Si7021(&hi2c1);
+float internalTemperature;
+float internalHumidity;
+float externalTemperature;
+float externalHumidity;
+Si7021 internalSensor = Si7021(&hi2c1);
+Si7021 externalSensor = Si7021(&hi2c2);
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_I2C2_Init(void);
 static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 
@@ -84,16 +89,20 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-  __HAL_RCC_I2C1_CLK_ENABLE();
-     HAL_Delay(100);
-     __HAL_RCC_I2C1_FORCE_RESET();
-     HAL_Delay(100);
-     __HAL_RCC_I2C1_RELEASE_RESET();
-     HAL_Delay(100);
+	__HAL_RCC_I2C1_CLK_ENABLE();
+	__HAL_RCC_I2C2_CLK_ENABLE();
+	HAL_Delay(100);
+	__HAL_RCC_I2C1_FORCE_RESET();
+	__HAL_RCC_I2C2_FORCE_RESET();
+	HAL_Delay(100);
+	__HAL_RCC_I2C1_RELEASE_RESET();
+	__HAL_RCC_I2C2_RELEASE_RESET();
+	HAL_Delay(100);
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_I2C2_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
 
@@ -102,15 +111,18 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 	while (1) {
-		sensor.measureTemperatureAndHumidity();
+		internalSensor.measureTemperatureAndHumidity();
+		externalSensor.measureTemperatureAndHumidity();
 
-		if (sensor.measuredSuccessful) {
-			HTU21D_Temperature = sensor.getTemperature();
-			HTU21D_Humidity = sensor.getHumidity();
+		if (internalSensor.measuredSuccessful && externalSensor.measuredSuccessful) {
+			internalTemperature = internalSensor.getTemperature();
+			internalHumidity = internalSensor.getHumidity();
+			externalTemperature = externalSensor.getTemperature();
+			externalHumidity = externalSensor.getHumidity();
 		}
 
-		HAL_Delay(100);
-		/* USER CODE END WHILE */
+    HAL_Delay(100);
+    /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
 	}
@@ -186,6 +198,40 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief I2C2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C2_Init(void)
+{
+
+  /* USER CODE BEGIN I2C2_Init 0 */
+
+  /* USER CODE END I2C2_Init 0 */
+
+  /* USER CODE BEGIN I2C2_Init 1 */
+
+  /* USER CODE END I2C2_Init 1 */
+  hi2c2.Instance = I2C2;
+  hi2c2.Init.ClockSpeed = 100000;
+  hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_2;
+  hi2c2.Init.OwnAddress1 = 0;
+  hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+  hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+  hi2c2.Init.OwnAddress2 = 0;
+  hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+  hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+  if (HAL_I2C_Init(&hi2c2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN I2C2_Init 2 */
+
+  /* USER CODE END I2C2_Init 2 */
 
 }
 
