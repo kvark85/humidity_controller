@@ -42,8 +42,7 @@ extern "C" {
 
 /* Exported constants --------------------------------------------------------*/
 /* USER CODE BEGIN EC */
-#define LED1_Pin GPIO_PIN_0
-#define LED1_GPIO_Port GPIOC
+
 /* USER CODE END EC */
 
 /* Exported macro ------------------------------------------------------------*/
@@ -59,8 +58,15 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define LED1_Pin GPIO_PIN_13
+#define LED1_GPIO_Port GPIOC
+#define MOTOR_Pin GPIO_PIN_12
+#define MOTOR_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
-
+#define NUM_SAMPLES 3
+#define TIME_SCAN_SENSOR 3000
+#define d_HUMIDITY 0.3
+//#define dH_OFF 0.15 // Гистерезис абсолютной влажности
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

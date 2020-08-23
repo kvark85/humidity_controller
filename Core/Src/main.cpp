@@ -23,6 +23,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "Si7021.h"
+#include "math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -44,12 +45,28 @@ I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c2;
 
 /* USER CODE BEGIN PV */
-float internalTemperature;
-float internalHumidity;
-float externalTemperature;
-float externalHumidity;
+typedef struct {
+	uint8_t num; // сколько отсчетов уже сложили не болле NUM_SAMPLES
+	float sum_internalTemperature; // Сумма для усреднения Текущие температуры в сотых градуса !!! место экономим
+	float sum_externalTemperature; // Сумма для усреднения Текущие температуры в сотых градуса !!! место экономим
+	float sum_internalHumidity; // Сумма для усреднения Относительные влажности сотых процента !!! место экономим
+	float sum_externalHumidity; // Сумма для усреднения Относительные влажности сотых процента !!! место экономим
+} type_sensors; // структура для усреднения
+
+typedef struct {
+	float internalTemperature;
+	float externalTemperature;
+	float internalHumidity;
+	float externalHumidity;
+	float abs_internalHumidity; // Абсолютные влажности в граммах на м*3
+	float abs_externalHumidity; // Абсолютные влажности в граммах на м*3
+	uint8_t motor;
+} type_result;
+
 Si7021 internalSensor = Si7021(&hi2c1);
 Si7021 externalSensor = Si7021(&hi2c2);
+type_sensors sensors;
+type_result results;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -58,7 +75,9 @@ static void MX_GPIO_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
-
+void reset_sum(void);
+float calculationAbsH(float, float);
+void CheckON(void);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -114,14 +133,32 @@ int main(void)
 		internalSensor.measureTemperatureAndHumidity();
 		externalSensor.measureTemperatureAndHumidity();
 
-		if (internalSensor.measuredSuccessful && externalSensor.measuredSuccessful) {
-			internalTemperature = internalSensor.getTemperature();
-			internalHumidity = internalSensor.getHumidity();
-			externalTemperature = externalSensor.getTemperature();
-			externalHumidity = externalSensor.getHumidity();
+		if (internalSensor.measuredSuccessful
+				&& externalSensor.measuredSuccessful) {
+			sensors.sum_internalTemperature += internalSensor.getTemperature();
+			sensors.sum_externalTemperature += externalSensor.getTemperature();
+			sensors.sum_internalHumidity += internalSensor.getHumidity();
+			sensors.sum_externalHumidity += externalSensor.getHumidity();
+			sensors.num++;
 		}
 
-    HAL_Delay(100);
+		if (sensors.num >= NUM_SAMPLES) // Пора усреднять и выводить значения
+		{
+			results.internalTemperature = sensors.sum_internalTemperature
+					/ NUM_SAMPLES;
+			results.externalTemperature = sensors.sum_externalTemperature
+					/ NUM_SAMPLES;
+			results.internalHumidity = sensors.sum_internalHumidity
+					/ NUM_SAMPLES;
+			results.externalHumidity = sensors.sum_externalHumidity
+					/ NUM_SAMPLES;
+			results.abs_internalHumidity = calculationAbsH(results.internalTemperature, results.internalHumidity);
+			results.abs_externalHumidity = calculationAbsH(results.externalTemperature, results.externalHumidity);
+			reset_sum();
+			CheckON(); // Проверка статуса вентилятора
+		}
+
+		HAL_Delay(TIME_SCAN_SENSOR);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -247,33 +284,62 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
-  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0|GPIO_PIN_1, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(MOTOR_GPIO_Port, MOTOR_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PC13 */
-  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  /*Configure GPIO pin : LED1_Pin */
+  GPIO_InitStruct.Pin = LED1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+  HAL_GPIO_Init(LED1_GPIO_Port, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA0 PA1 */
-  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1;
+  /*Configure GPIO pin : MOTOR_Pin */
+  GPIO_InitStruct.Pin = MOTOR_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(MOTOR_GPIO_Port, &GPIO_InitStruct);
 
 }
 
 /* USER CODE BEGIN 4 */
+void reset_sum()  // Сброс счетчиков накоплений
+{
+	sensors.num = 0;
+	sensors.sum_internalTemperature = 0;
+	sensors.sum_externalTemperature = 0;
+	sensors.sum_internalHumidity = 0;
+	sensors.sum_externalHumidity = 0;
+}
 
+float calculationAbsH(float t, float h) {
+	float temp;
+	temp = pow(2.718281828, (17.67 * t) / (t + 243.5));
+	return (6.112 * temp * h * 2.1674) / (273.15 + t);
+}
+
+void CheckON() {
+	if (results.motor == false) {
+		// Вентилятор выключен
+		if ((results.abs_internalHumidity - d_HUMIDITY) > results.abs_externalHumidity) {
+			results.motor = true;
+			HAL_GPIO_WritePin(MOTOR_GPIO_Port, MOTOR_Pin, GPIO_PIN_SET);
+		}
+	} else {
+		// Вентилятор включен
+		if (results.abs_internalHumidity < results.abs_externalHumidity) {
+			results.motor = false;
+			HAL_GPIO_WritePin(MOTOR_GPIO_Port, MOTOR_Pin, GPIO_PIN_RESET);
+		}
+	}
+}
 /* USER CODE END 4 */
 
 /**
