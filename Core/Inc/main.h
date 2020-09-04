@@ -62,10 +62,15 @@ void Error_Handler(void);
 #define LED1_GPIO_Port GPIOC
 #define MOTOR_Pin GPIO_PIN_12
 #define MOTOR_GPIO_Port GPIOB
+#define LCD_RESET_Pin GPIO_PIN_13
+#define LCD_RESET_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 #define NUM_SAMPLES 3
 #define TIME_SCAN_SENSOR 3000
-#define d_HUMIDITY 0.3
+#define d_HUMIDITY 0.2
+#define ROW_1 15
+#define ROW_2 24
+#define ROW_3 53
 //#define dH_OFF 0.15 // Гистерезис абсолютной влажности
 /* USER CODE END Private defines */
 
