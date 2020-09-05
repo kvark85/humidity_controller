@@ -65,12 +65,23 @@ void Error_Handler(void);
 #define LCD_RESET_Pin GPIO_PIN_13
 #define LCD_RESET_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
+
 #define NUM_SAMPLES 3
 #define TIME_SCAN_SENSOR 3000
+
 #define d_HUMIDITY 0.2
 #define ROW_1 15
-#define ROW_2 24
-#define ROW_3 53
+#define TABLE_ROW_1 30
+#define TABLE_ROW_2 42
+#define TABLE_ROW_3 54
+#define TABLE_COLUMN_1 0
+#define TABLE_COLUMN_2 63
+#define TABLE_COLUMN_3 95
+
+#define CLEAR_CELL_1_1() display.fillRect(TABLE_COLUMN_2 + 2, TABLE_ROW_2, 29, 8, WHITE)
+#define CLEAR_CELL_1_2() display.fillRect(TABLE_COLUMN_3 + 2, TABLE_ROW_2, 29, 8, WHITE)
+#define CLEAR_CELL_2_1() display.fillRect(TABLE_COLUMN_2 + 2, TABLE_ROW_3, 29, 8, WHITE)
+#define CLEAR_CELL_2_2() display.fillRect(TABLE_COLUMN_3 + 2, TABLE_ROW_3, 29, 8, WHITE)
 //#define dH_OFF 0.15 // Гистерезис абсолютной влажности
 /* USER CODE END Private defines */
 
