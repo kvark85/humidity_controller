@@ -137,9 +137,9 @@ int main(void) {
 //			HAL_Delay(2000);
 //			CLEAR_CELL_2_1();
 //			CLEAR_CELL_2_2();
-//			display.setCursor(TABLE_COLUMN_2 + 2, TABLE_ROW_3);
+//			display.setCursor(TABLE_COLUMN_2 + 2, TABLE_ROW_2);
 //			display.drawFloat(results.abs_internalHumidity);
-//			display.setCursor(TABLE_COLUMN_3 + 2, TABLE_ROW_3);
+//			display.setCursor(TABLE_COLUMN_3 + 2, TABLE_ROW_2);
 //			display.drawFloat(results.abs_internalHumidity);
 //			display.display();
 //			results.abs_internalHumidity++;
@@ -161,9 +161,9 @@ int main(void) {
 		if (!externalSensor.measuredSuccessful) {
 			CLEAR_CELL_1_1();
 			CLEAR_CELL_1_2();
-			display.setCursor(TABLE_COLUMN_2 + 10, TABLE_ROW_3);
+			display.setCursor(TABLE_COLUMN_2 + 10, TABLE_ROW_1);
 			display.println("--");
-			display.setCursor(TABLE_COLUMN_3 + 10, TABLE_ROW_3);
+			display.setCursor(TABLE_COLUMN_3 + 10, TABLE_ROW_1);
 			display.println("--");
 			display.display();
 			reset_sum();
@@ -200,16 +200,16 @@ int main(void) {
 
 			CLEAR_CELL_1_1();
 			CLEAR_CELL_1_2();
-			display.setCursor(TABLE_COLUMN_2 + 2, TABLE_ROW_2);
+			display.setCursor(TABLE_COLUMN_2 + 2, TABLE_ROW_1);
 			display.drawFloat(results.abs_externalHumidity);
-			display.setCursor(TABLE_COLUMN_3 + 2, TABLE_ROW_2);
+			display.setCursor(TABLE_COLUMN_3 + 2, TABLE_ROW_1);
 			display.drawFloat(results.externalTemperature);
 
 			CLEAR_CELL_2_1();
 			CLEAR_CELL_2_2();
-			display.setCursor(TABLE_COLUMN_2 + 2, TABLE_ROW_3);
+			display.setCursor(TABLE_COLUMN_2 + 2, TABLE_ROW_2);
 			display.drawFloat(results.abs_internalHumidity);
-			display.setCursor(TABLE_COLUMN_3 + 2, TABLE_ROW_3);
+			display.setCursor(TABLE_COLUMN_3 + 2, TABLE_ROW_2);
 			display.drawFloat(results.internalTemperature);
 			display.display();
 		}
@@ -409,33 +409,33 @@ void initLcd(void) {
 	display.setCursor(17, ROW_1);
 	display.println("Вытяжка выключена");
 
-	display.writeFastHLine(0, TABLE_ROW_1 - 3, 128, BLACK);
+	display.writeFastHLine(0, TABLE_ROW_0 - 3, 128, BLACK);
 
-	display.setCursor(27, TABLE_ROW_1);
+	display.setCursor(27, TABLE_ROW_0);
 	display.println("Датчик");
 
-	display.setCursor(TABLE_COLUMN_2 + 7, TABLE_ROW_1);
+	display.setCursor(TABLE_COLUMN_2 + 7, TABLE_ROW_0);
 	display.println("H,%");
 
-	display.setCursor(TABLE_COLUMN_3 + 7, TABLE_ROW_1);
+	display.setCursor(TABLE_COLUMN_3 + 7, TABLE_ROW_0);
 	display.println("t,");
-	display.drawChar(TABLE_COLUMN_3 + 7 + 10, TABLE_ROW_1 - 2, 9, BLACK, WHITE,
+	display.drawChar(TABLE_COLUMN_3 + 7 + 10, TABLE_ROW_0 - 2, 9, BLACK, WHITE,
 			1); // symbol "°"
-	display.setCursor(TABLE_COLUMN_3 + 7 + 15, TABLE_ROW_1);
+	display.setCursor(TABLE_COLUMN_3 + 7 + 15, TABLE_ROW_0);
 	display.println("С");
 
-	display.writeFastHLine(0, TABLE_ROW_2 - 3, 128, BLACK);
-	display.setCursor(21, TABLE_ROW_2);
+	display.writeFastHLine(0, TABLE_ROW_1 - 3, 128, BLACK);
+	display.setCursor(21, TABLE_ROW_1);
 	display.println("Внешний");
-	display.writeFastHLine(0, TABLE_ROW_3 - 3, 128, BLACK);
-	display.setCursor(3, TABLE_ROW_3);
+	display.writeFastHLine(0, TABLE_ROW_2 - 3, 128, BLACK);
+	display.setCursor(3, TABLE_ROW_2);
 	display.println("Внутpенний");
 	display.writeFastHLine(0, 63, 128, BLACK);
 
-	display.writeFastVLine(0, TABLE_ROW_1 - 3, 63 - 25, BLACK);
-	display.writeFastVLine(TABLE_COLUMN_2, TABLE_ROW_1 - 3, 63 - 25, BLACK);
-	display.writeFastVLine(TABLE_COLUMN_3, TABLE_ROW_1 - 3, 63 - 25, BLACK);
-	display.writeFastVLine(127, TABLE_ROW_1 - 3, 63 - 25, BLACK);
+	display.writeFastVLine(0, TABLE_ROW_0 - 3, 63 - 25, BLACK);
+	display.writeFastVLine(TABLE_COLUMN_2, TABLE_ROW_0 - 3, 63 - 25, BLACK);
+	display.writeFastVLine(TABLE_COLUMN_3, TABLE_ROW_0 - 3, 63 - 25, BLACK);
+	display.writeFastVLine(127, TABLE_ROW_0 - 3, 63 - 25, BLACK);
 
 	CLEAR_CELL_1_1();
 	CLEAR_CELL_1_2();
