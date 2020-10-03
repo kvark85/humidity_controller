@@ -1,4 +1,4 @@
-#define _SI7021_H
+#ifndef _SI7021_H
 #define _SI7021_H
 
 #include "main.h"
@@ -25,3 +25,4 @@ public:
 	float getTemperature(void);
 	float getHumidity(void);
 };
+#endif

@@ -27,7 +27,7 @@ char *numbers[10] = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
  @brief Constructor for hardware I2C
  */
 Adafruit_G77E0_TEA6320::Adafruit_G77E0_TEA6320() :
-		Adafruit_GFX(LCD_WIDTH, LCD_HEIGHT) {
+				Adafruit_GFX(LCD_WIDTH, LCD_HEIGHT) {
 }
 
 /*!
@@ -89,7 +89,7 @@ void Adafruit_G77E0_TEA6320::initDisplay() {
 
 	HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(&hi2c1,
 			LCD_SLAVE_ADDRESS, initArray, (uint16_t) 15, (uint32_t) I2C_DELAY);
-//	while(status != HAL_OK);
+	//	while(status != HAL_OK);
 	clearDisplay();
 }
 
@@ -111,7 +111,7 @@ void Adafruit_G77E0_TEA6320::display(void) {
 	setLcdCursorPosition(0, 0);
 	HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(&hi2c1,
 			LCD_SLAVE_ADDRESS, arrayToWrite, 1 + ALL_LCD_PIXELS, I2C_DELAY);
-//	while(status != HAL_OK);
+	//	while(status != HAL_OK);
 }
 
 /*!
@@ -125,7 +125,7 @@ void Adafruit_G77E0_TEA6320::clearDisplay(void) {
 
 	HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(&hi2c1,
 			LCD_SLAVE_ADDRESS, arrayToClear, 1 + ALL_LCD_PIXELS, I2C_DELAY);
-//	while(status != HAL_OK);
+	//	while(status != HAL_OK);
 }
 
 /*!
@@ -137,7 +137,7 @@ void Adafruit_G77E0_TEA6320::setLcdCursorPosition(uint8_t x, uint8_t y) {
 			0b00100000,		// set ram page 0
 			0b01000000 | y,	// set y pos
 			0b10000000 | x,	// set x pos
-			};
+	};
 	HAL_StatusTypeDef status = HAL_I2C_Master_Transmit(&hi2c1,
 			LCD_SLAVE_ADDRESS, setPositionArray, 5, I2C_DELAY);
 	//	while(status != HAL_OK);

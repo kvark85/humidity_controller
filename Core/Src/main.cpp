@@ -44,6 +44,7 @@
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c2;
+UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 typedef struct {
@@ -68,7 +69,7 @@ Si7021 externalSensor = Si7021(&hi2c2);
 type_sensors sensors;
 type_result results;
 Adafruit_G77E0_TEA6320 display = Adafruit_G77E0_TEA6320();
-volatile uint16_t adc_buffer[FFT_LENGTH] = { 0 };
+uint8_t message[100] = {};
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -76,11 +77,18 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_I2C1_Init(void);
+static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 void reset_sum(void);
 float calculationAbsH(float, float);
 void CheckON(void);
 void initLcd(void);
+uint8_t toIntString(float number, uint8_t *strArray);
+uint8_t createJsonString(float iH, float iT, float eH, float eT, uint8_t motor, uint8_t *strArray);
+void showSuccesMeasuringOnLcd(type_result results);
+void sendSuccesBluetoothMessage(type_result results);
+void showErrorOnLcd(Si7021 externalSensor, Si7021 internalSensor);
+void sendErrorBluetoothMessage(Si7021 externalSensor, Si7021 internalSensor);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -92,7 +100,8 @@ void initLcd(void);
  * @brief  The application entry point.
  * @retval int
  */
-int main(void) {
+int main(void)
+{
 	/* USER CODE BEGIN 1 */
 
 	/* USER CODE END 1 */
@@ -125,6 +134,7 @@ int main(void) {
 	MX_GPIO_Init();
 	MX_I2C2_Init();
 	MX_I2C1_Init();
+	MX_USART2_UART_Init();
 	/* USER CODE BEGIN 2 */
 	initLcd();
 	/* USER CODE END 2 */
@@ -132,86 +142,44 @@ int main(void) {
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {
-//		while (1) {
-//			HAL_GPIO_WritePin(MOTOR_GPIO_Port, MOTOR_Pin, GPIO_PIN_SET);
-//			HAL_Delay(2000);
-//			CLEAR_CELL_2_1();
-//			CLEAR_CELL_2_2();
-//			display.setCursor(TABLE_COLUMN_2 + 2, TABLE_ROW_2);
-//			display.drawFloat(results.abs_internalHumidity);
-//			display.setCursor(TABLE_COLUMN_3 + 2, TABLE_ROW_2);
-//			display.drawFloat(results.abs_internalHumidity);
-//			display.display();
-//			results.abs_internalHumidity++;
-//			HAL_GPIO_WritePin(MOTOR_GPIO_Port, MOTOR_Pin, GPIO_PIN_RESET);
-//			HAL_Delay(2000);
-//		}
 		externalSensor.measureTemperatureAndHumidity();
 		internalSensor.measureTemperatureAndHumidity();
 
 		if (externalSensor.measuredSuccessful
 				&& internalSensor.measuredSuccessful) {
-			sensors.sum_externalTemperature += externalSensor.getTemperature();
-			sensors.sum_internalTemperature += internalSensor.getTemperature();
-			sensors.sum_externalHumidity += externalSensor.getHumidity();
-			sensors.sum_internalHumidity += internalSensor.getHumidity();
-			sensors.num++;
-		}
+			// all measuring are successful
 
-		if (!externalSensor.measuredSuccessful) {
-			CLEAR_CELL_1_1();
-			CLEAR_CELL_1_2();
-			display.setCursor(TABLE_COLUMN_2 + 10, TABLE_ROW_1);
-			display.println("--");
-			display.setCursor(TABLE_COLUMN_3 + 10, TABLE_ROW_1);
-			display.println("--");
-			display.display();
+			if (sensors.num < NUM_SAMPLES) {
+				// add the measured values for averaging
+				sensors.sum_externalTemperature += externalSensor.getTemperature();
+				sensors.sum_internalTemperature += internalSensor.getTemperature();
+				sensors.sum_externalHumidity += externalSensor.getHumidity();
+				sensors.sum_internalHumidity += internalSensor.getHumidity();
+				sensors.num++;
+			}
+
+			if (sensors.num >= NUM_SAMPLES) {
+				// calculate the average values
+				results.externalTemperature = sensors.sum_externalTemperature / (float)NUM_SAMPLES;
+				results.internalTemperature = sensors.sum_internalTemperature / (float)NUM_SAMPLES;
+				results.externalHumidity = sensors.sum_externalHumidity / (float)NUM_SAMPLES;
+				results.internalHumidity = sensors.sum_internalHumidity / (float)NUM_SAMPLES;
+				results.abs_externalHumidity = calculationAbsH(
+						results.externalTemperature, results.externalHumidity);
+				results.abs_internalHumidity = calculationAbsH(
+						results.internalTemperature, results.internalHumidity);
+
+				CheckON(); // Проверка статуса вентилятора
+				reset_sum();
+				showSuccesMeasuringOnLcd(results);
+			}
+
+			sendSuccesBluetoothMessage(results);
+		} else {
+			// some mistake happens during measuring
+			showErrorOnLcd(externalSensor, internalSensor);
+			sendErrorBluetoothMessage(externalSensor, internalSensor);
 			reset_sum();
-		}
-
-		if (!internalSensor.measuredSuccessful) {
-			CLEAR_CELL_2_1();
-			CLEAR_CELL_2_2();
-			display.setCursor(TABLE_COLUMN_2 + 10, TABLE_ROW_2);
-			display.println("--");
-			display.setCursor(TABLE_COLUMN_3 + 10, TABLE_ROW_2);
-			display.println("--");
-			display.display();
-			reset_sum();
-		}
-
-		if (sensors.num >= NUM_SAMPLES) // Пора усреднять и выводить значения
-		{
-			results.externalTemperature = sensors.sum_externalTemperature
-					/ NUM_SAMPLES;
-			results.internalTemperature = sensors.sum_internalTemperature
-					/ NUM_SAMPLES;
-			results.externalHumidity = sensors.sum_externalHumidity
-					/ NUM_SAMPLES;
-			results.internalHumidity = sensors.sum_internalHumidity
-					/ NUM_SAMPLES;
-			results.abs_externalHumidity = calculationAbsH(
-					results.externalTemperature, results.externalHumidity);
-			results.abs_internalHumidity = calculationAbsH(
-					results.internalTemperature, results.internalHumidity);
-			reset_sum();
-
-			CheckON(); // Проверка статуса вентилятора
-
-			CLEAR_CELL_1_1();
-			CLEAR_CELL_1_2();
-			display.setCursor(TABLE_COLUMN_2 + 2, TABLE_ROW_1);
-			display.drawFloat(results.abs_externalHumidity);
-			display.setCursor(TABLE_COLUMN_3 + 2, TABLE_ROW_1);
-			display.drawFloat(results.externalTemperature);
-
-			CLEAR_CELL_2_1();
-			CLEAR_CELL_2_2();
-			display.setCursor(TABLE_COLUMN_2 + 2, TABLE_ROW_2);
-			display.drawFloat(results.abs_internalHumidity);
-			display.setCursor(TABLE_COLUMN_3 + 2, TABLE_ROW_2);
-			display.drawFloat(results.internalTemperature);
-			display.display();
 		}
 
 		HAL_Delay(TIME_SCAN_SENSOR);
@@ -226,9 +194,10 @@ int main(void) {
  * @brief System Clock Configuration
  * @retval None
  */
-void SystemClock_Config(void) {
-	RCC_OscInitTypeDef RCC_OscInitStruct = { 0 };
-	RCC_ClkInitTypeDef RCC_ClkInitStruct = { 0 };
+void SystemClock_Config(void)
+{
+	RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+	RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
 
 	/** Initializes the RCC Oscillators according to the specified parameters
 	 * in the RCC_OscInitTypeDef structure.
@@ -240,19 +209,21 @@ void SystemClock_Config(void) {
 	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
 	RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
 	RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
-	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+	if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+	{
 		Error_Handler();
 	}
 	/** Initializes the CPU, AHB and APB buses clocks
 	 */
-	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_SYSCLK
-			| RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
+	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+			|RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
 	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
 	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
 	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
 	RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK) {
+	if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
+	{
 		Error_Handler();
 	}
 }
@@ -262,7 +233,8 @@ void SystemClock_Config(void) {
  * @param None
  * @retval None
  */
-static void MX_I2C1_Init(void) {
+static void MX_I2C1_Init(void)
+{
 
 	/* USER CODE BEGIN I2C1_Init 0 */
 
@@ -280,7 +252,8 @@ static void MX_I2C1_Init(void) {
 	hi2c1.Init.OwnAddress2 = 0;
 	hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
 	hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-	if (HAL_I2C_Init(&hi2c1) != HAL_OK) {
+	if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+	{
 		Error_Handler();
 	}
 	/* USER CODE BEGIN I2C1_Init 2 */
@@ -294,7 +267,8 @@ static void MX_I2C1_Init(void) {
  * @param None
  * @retval None
  */
-static void MX_I2C2_Init(void) {
+static void MX_I2C2_Init(void)
+{
 
 	/* USER CODE BEGIN I2C2_Init 0 */
 
@@ -312,7 +286,8 @@ static void MX_I2C2_Init(void) {
 	hi2c2.Init.OwnAddress2 = 0;
 	hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
 	hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-	if (HAL_I2C_Init(&hi2c2) != HAL_OK) {
+	if (HAL_I2C_Init(&hi2c2) != HAL_OK)
+	{
 		Error_Handler();
 	}
 	/* USER CODE BEGIN I2C2_Init 2 */
@@ -322,18 +297,52 @@ static void MX_I2C2_Init(void) {
 }
 
 /**
+ * @brief USART2 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_USART2_UART_Init(void)
+{
+
+	/* USER CODE BEGIN USART2_Init 0 */
+
+	/* USER CODE END USART2_Init 0 */
+
+	/* USER CODE BEGIN USART2_Init 1 */
+
+	/* USER CODE END USART2_Init 1 */
+	huart2.Instance = USART2;
+	huart2.Init.BaudRate = 9600;
+	huart2.Init.WordLength = UART_WORDLENGTH_8B;
+	huart2.Init.StopBits = UART_STOPBITS_1;
+	huart2.Init.Parity = UART_PARITY_NONE;
+	huart2.Init.Mode = UART_MODE_TX_RX;
+	huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+	huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+	if (HAL_UART_Init(&huart2) != HAL_OK)
+	{
+		Error_Handler();
+	}
+	/* USER CODE BEGIN USART2_Init 2 */
+
+	/* USER CODE END USART2_Init 2 */
+
+}
+
+/**
  * @brief GPIO Initialization Function
  * @param None
  * @retval None
  */
-static void MX_GPIO_Init(void) {
-	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
+static void MX_GPIO_Init(void)
+{
+	GPIO_InitTypeDef GPIO_InitStruct = {0};
 
 	/* GPIO Ports Clock Enable */
 	__HAL_RCC_GPIOC_CLK_ENABLE();
 	__HAL_RCC_GPIOD_CLK_ENABLE();
-	__HAL_RCC_GPIOB_CLK_ENABLE();
 	__HAL_RCC_GPIOA_CLK_ENABLE();
+	__HAL_RCC_GPIOB_CLK_ENABLE();
 
 	/*Configure GPIO pin Output Level */
 	HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
@@ -352,7 +361,7 @@ static void MX_GPIO_Init(void) {
 	HAL_GPIO_Init(LED1_GPIO_Port, &GPIO_InitStruct);
 
 	/*Configure GPIO pins : MOTOR_Pin LCD_RESET_Pin */
-	GPIO_InitStruct.Pin = MOTOR_Pin | LCD_RESET_Pin;
+	GPIO_InitStruct.Pin = MOTOR_Pin|LCD_RESET_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -362,7 +371,7 @@ static void MX_GPIO_Init(void) {
 
 /* USER CODE BEGIN 4 */
 void reset_sum(void)  // Сброс счетчиков накоплений
-		{
+{
 	sensors.num = 0;
 	sensors.sum_internalTemperature = 0;
 	sensors.sum_externalTemperature = 0;
@@ -444,13 +453,196 @@ void initLcd(void) {
 
 	display.display();
 }
+
+uint8_t toIntString(float number, uint8_t *strArray) {
+	uint8_t numbers[10] = {
+			(uint8_t)'0',
+			(uint8_t)'1',
+			(uint8_t)'2',
+			(uint8_t)'3',
+			(uint8_t)'4',
+			(uint8_t)'5',
+			(uint8_t)'6',
+			(uint8_t)'7',
+			(uint8_t)'8',
+			(uint8_t)'9'
+	};
+	uint8_t isNegativeSign = number < 0 ? 1 : 0;
+	if(isNegativeSign) {
+		number *= -1;
+		strArray[0] = (uint8_t)'-';
+	}
+	uint32_t previousNumber = number;
+	uint32_t temp = 0;
+	uint8_t sumpolCount = 1; // количества разрядов
+	uint32_t factor = 1;
+
+	// расчет количества разрядов (sumpolCount)
+	previousNumber = (uint32_t)(previousNumber / 10);
+	while(previousNumber > 0) {
+		previousNumber = previousNumber / 10;
+		sumpolCount++;
+	}
+
+	// расчет начального делителя
+	for (uint8_t factorIndex = 0; factorIndex < (sumpolCount - 1); factorIndex++) {
+		factor *= 10;
+	}
+
+	previousNumber = number;
+	for (uint8_t index = 0; index < (sumpolCount); index++) {
+		temp = (uint32_t)(previousNumber / factor);
+		strArray[index + isNegativeSign] = numbers[temp];
+		previousNumber = previousNumber - (temp * factor);
+		factor /= 10;
+	}
+
+	return isNegativeSign ? sumpolCount + 1 : sumpolCount;
+}
+
+uint8_t createJsonString(float iH, float iT, float eH, float eT, uint8_t motor, uint8_t *strArray) {
+	uint8_t sub0[6] = { (uint8_t)'{', (uint8_t)'"', (uint8_t)'i', (uint8_t)'H', (uint8_t)'"', (uint8_t)':' };
+	uint8_t sub1[6] = { (uint8_t)',', (uint8_t)'"', (uint8_t)'i', (uint8_t)'T', (uint8_t)'"', (uint8_t)':' };
+	uint8_t sub2[6] = { (uint8_t)',', (uint8_t)'"', (uint8_t)'e', (uint8_t)'H', (uint8_t)'"', (uint8_t)':' };
+	uint8_t sub3[6] = { (uint8_t)',', (uint8_t)'"', (uint8_t)'e', (uint8_t)'T', (uint8_t)'"', (uint8_t)':' };
+	uint8_t sub4[5] = { (uint8_t)',', (uint8_t)'"', (uint8_t)'m', (uint8_t)'"', (uint8_t)':' };
+	uint8_t sub5[1] = { (uint8_t)'}' };
+	uint8_t lengts[6] = { 6, 6, 6, 6, 5, 1 };
+	uint8_t numberArray[10] = {};
+	uint8_t messageLength = 0;
+	uint8_t numberLength = 0;
+	//---------------------------------------------------------------------------------------------------------
+	// "{'iH':"
+	for(uint8_t index = 0; index < lengts[0]; index++) {
+		message[messageLength] = sub0[index];
+		messageLength++;
+	}
+	numberLength = toIntString(iH, &numberArray[0]);
+	for(uint8_t numberIndex = 0; numberIndex < numberLength; numberIndex++) {
+		message[messageLength] = numberArray[numberIndex];
+		messageLength++;
+	}
+	//---------------------------------------------------------------------------------------------------------
+	// "{'iT':"
+	for(uint8_t index = 0; index < lengts[1]; index++) {
+		message[messageLength] = sub1[index];
+		messageLength++;
+	}
+	numberLength = toIntString(iT, &numberArray[0]);
+	for(uint8_t numberIndex = 0; numberIndex < numberLength; numberIndex++) {
+		message[messageLength] = numberArray[numberIndex];
+		messageLength++;
+	}
+	//---------------------------------------------------------------------------------------------------------
+	// ",{'eH':"
+	for(uint8_t index = 0; index < lengts[2]; index++) {
+		message[messageLength] = sub2[index];
+		messageLength++;
+	}
+	numberLength = toIntString(eH, &numberArray[0]);
+	for(uint8_t numberIndex = 0; numberIndex < numberLength; numberIndex++) {
+		message[messageLength] = numberArray[numberIndex];
+		messageLength++;
+	}
+	//---------------------------------------------------------------------------------------------------------
+	// ",{'eH':"
+	for(uint8_t index = 0; index < lengts[3]; index++) {
+		message[messageLength] = sub3[index];
+		messageLength++;
+	}
+	numberLength = toIntString(eT, &numberArray[0]);
+	for(uint8_t numberIndex = 0; numberIndex < numberLength; numberIndex++) {
+		message[messageLength] = numberArray[numberIndex];
+		messageLength++;
+	}
+	//---------------------------------------------------------------------------------------------------------
+	// ",{'m':"
+	for(uint8_t index = 0; index < lengts[4]; index++) {
+		message[messageLength] = sub4[index];
+		messageLength++;
+	}
+	numberLength = toIntString((float)(motor), &numberArray[0]);
+	for(uint8_t numberIndex = 0; numberIndex < numberLength; numberIndex++) {
+		message[messageLength] = numberArray[numberIndex];
+		messageLength++;
+	}
+	//---------------------------------------------------------------------------------------------------------
+	// "}"
+	for(uint8_t index = 0; index < lengts[5]; index++) {
+		message[messageLength] = sub5[index];
+		messageLength++;
+	}
+	//---------------------------------------------------------------------------------------------------------
+	return messageLength;
+}
+
+void showSuccesMeasuringOnLcd(type_result results) {
+	CLEAR_CELL_1_1();
+	CLEAR_CELL_1_2();
+	display.setCursor(TABLE_COLUMN_2 + 2, TABLE_ROW_1);
+	display.drawFloat(results.abs_externalHumidity);
+	display.setCursor(TABLE_COLUMN_3 + 2, TABLE_ROW_1);
+	display.drawFloat(results.externalTemperature);
+
+	CLEAR_CELL_2_1();
+	CLEAR_CELL_2_2();
+	display.setCursor(TABLE_COLUMN_2 + 2, TABLE_ROW_2);
+	display.drawFloat(results.abs_internalHumidity);
+	display.setCursor(TABLE_COLUMN_3 + 2, TABLE_ROW_2);
+	display.drawFloat(results.internalTemperature);
+	display.display();
+}
+
+void showErrorOnLcd(Si7021 externalSensor, Si7021 internalSensor) {
+	if (!externalSensor.measuredSuccessful) {
+		CLEAR_CELL_1_1();
+		CLEAR_CELL_1_2();
+		display.setCursor(TABLE_COLUMN_2 + 10, TABLE_ROW_1);
+		display.println("--");
+		display.setCursor(TABLE_COLUMN_3 + 10, TABLE_ROW_1);
+		display.println("--");
+	}
+
+	if (!internalSensor.measuredSuccessful) {
+		CLEAR_CELL_2_1();
+		CLEAR_CELL_2_2();
+		display.setCursor(TABLE_COLUMN_2 + 10, TABLE_ROW_2);
+		display.println("--");
+		display.setCursor(TABLE_COLUMN_3 + 10, TABLE_ROW_2);
+		display.println("--");
+	}
+	display.display();
+}
+
+void sendSuccesBluetoothMessage(type_result results) {
+	uint8_t motor = 0;
+	if(HAL_GPIO_ReadPin(MOTOR_GPIO_Port, MOTOR_Pin) == GPIO_PIN_SET) {
+		motor = 1;
+	}
+	uint8_t messageLength = createJsonString(
+			results.abs_internalHumidity * (float)100,
+			results.internalTemperature * (float)100,
+			results.abs_externalHumidity * (float)100,
+			results.externalTemperature * (float)100,
+			motor,
+			&message[0]
+	);
+
+	HAL_UART_Transmit(&huart2, (uint8_t*)message, messageLength, 100);
+	HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, 100);
+}
+
+void sendErrorBluetoothMessage(Si7021 externalSensor, Si7021 internalSensor) {
+	// TODO: add implementation
+}
 /* USER CODE END 4 */
 
 /**
  * @brief  This function is executed in case of error occurrence.
  * @retval None
  */
-void Error_Handler(void) {
+void Error_Handler(void)
+{
 	/* USER CODE BEGIN Error_Handler_Debug */
 	/* User can add his own implementation to report the HAL error return state */
 
@@ -459,18 +651,18 @@ void Error_Handler(void) {
 
 #ifdef  USE_FULL_ASSERT
 /**
-  * @brief  Reports the name of the source file and the source line number
-  *         where the assert_param error has occurred.
-  * @param  file: pointer to the source file name
-  * @param  line: assert_param error line source number
-  * @retval None
-  */
+ * @brief  Reports the name of the source file and the source line number
+ *         where the assert_param error has occurred.
+ * @param  file: pointer to the source file name
+ * @param  line: assert_param error line source number
+ * @retval None
+ */
 void assert_failed(uint8_t *file, uint32_t line)
 {
-  /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
+	/* USER CODE BEGIN 6 */
+	/* User can add his own implementation to report the file name and line number,
      tex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-  /* USER CODE END 6 */
+	/* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
 
