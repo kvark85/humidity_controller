@@ -44,6 +44,7 @@
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c2;
+
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -142,14 +143,19 @@ int main(void)
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {
+		HAL_UART_Transmit(&huart2, (uint8_t*)"1111", 3, 100); // zzz
+		HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, 100); // zzz
 		externalSensor.measureTemperatureAndHumidity();
 		internalSensor.measureTemperatureAndHumidity();
 
 		if (externalSensor.measuredSuccessful
 				&& internalSensor.measuredSuccessful) {
 			// all measuring are successful
-
+			HAL_UART_Transmit(&huart2, (uint8_t*)"3333", 3, 100); // zzz
+			HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, 100); // zzz
 			if (sensors.num < NUM_SAMPLES) {
+				HAL_UART_Transmit(&huart2, (uint8_t*)"4.111", 3, 100); // zzz
+				HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, 100); // zzz
 				// add the measured values for averaging
 				sensors.sum_externalTemperature += externalSensor.getTemperature();
 				sensors.sum_internalTemperature += internalSensor.getTemperature();
@@ -159,6 +165,8 @@ int main(void)
 			}
 
 			if (sensors.num >= NUM_SAMPLES) {
+				HAL_UART_Transmit(&huart2, (uint8_t*)"4.222", 3, 100); // zzz
+				HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, 100); // zzz
 				// calculate the average values
 				results.externalTemperature = sensors.sum_externalTemperature / (float)NUM_SAMPLES;
 				results.internalTemperature = sensors.sum_internalTemperature / (float)NUM_SAMPLES;
@@ -171,11 +179,12 @@ int main(void)
 
 				CheckON(); // Проверка статуса вентилятора
 				reset_sum();
-				showSuccesMeasuringOnLcd(results);
 			}
-
+			showSuccesMeasuringOnLcd(results);
 			sendSuccesBluetoothMessage(results);
 		} else {
+			HAL_UART_Transmit(&huart2, (uint8_t*)"5555", 3, 100); // zzz
+			HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, 100); // zzz
 			// some mistake happens during measuring
 			showErrorOnLcd(externalSensor, internalSensor);
 			sendErrorBluetoothMessage(externalSensor, internalSensor);
@@ -278,7 +287,7 @@ static void MX_I2C2_Init(void)
 
 	/* USER CODE END I2C2_Init 1 */
 	hi2c2.Instance = I2C2;
-	hi2c2.Init.ClockSpeed = 100000;
+	hi2c2.Init.ClockSpeed = 50000;
 	hi2c2.Init.DutyCycle = I2C_DUTYCYCLE_2;
 	hi2c2.Init.OwnAddress1 = 0;
 	hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
