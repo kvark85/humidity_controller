@@ -84,7 +84,7 @@ void reset_sum(void);
 float calculationAbsH(float, float);
 void CheckON(void);
 void initLcd(void);
-uint8_t toIntString(float number, uint8_t *strArray);
+uint8_t numberToString(float number, uint8_t *strArray, uint8_t fractionalNumber);
 uint8_t createJsonString(float iH, float iT, float eH, float eT, uint8_t motor, uint8_t *strArray);
 void showSuccesMeasuringOnLcd(type_result results);
 void sendSuccesBluetoothMessage(type_result results);
@@ -482,7 +482,7 @@ void initLcd(void) {
 	display.display();
 }
 
-uint8_t toIntString(float number, uint8_t *strArray) {
+uint8_t numberToString(float number, uint8_t *strArray, uint8_t fractionalNumber) {
 	uint8_t numbers[10] = {
 			(uint8_t)'0',
 			(uint8_t)'1',
@@ -502,30 +502,45 @@ uint8_t toIntString(float number, uint8_t *strArray) {
 	}
 	uint32_t previousNumber = number;
 	uint32_t temp = 0;
-	uint8_t sumpolCount = 1; // количества разрядов
+	uint8_t symbolCount = 1; // количества разрядов
 	uint32_t factor = 1;
 
-	// расчет количества разрядов (sumpolCount)
+	// расчет количества разрядов (symbolCount)
 	previousNumber = (uint32_t)(previousNumber / 10);
 	while(previousNumber > 0) {
 		previousNumber = previousNumber / 10;
-		sumpolCount++;
+		symbolCount++;
 	}
 
 	// расчет начального делителя
-	for (uint8_t factorIndex = 0; factorIndex < (sumpolCount - 1); factorIndex++) {
+	for (uint8_t factorIndex = 0; factorIndex < (symbolCount - 1); factorIndex++) {
 		factor *= 10;
 	}
 
 	previousNumber = number;
-	for (uint8_t index = 0; index < (sumpolCount); index++) {
+	for (uint8_t index = 0; index < (symbolCount); index++) {
 		temp = (uint32_t)(previousNumber / factor);
 		strArray[index + isNegativeSign] = numbers[temp];
 		previousNumber = previousNumber - (temp * factor);
 		factor /= 10;
 	}
 
-	return isNegativeSign ? sumpolCount + 1 : sumpolCount;
+	if(fractionalNumber == 0) {
+		return isNegativeSign ? symbolCount + 1 : symbolCount;
+	}
+
+	strArray[symbolCount + isNegativeSign] = (uint8_t)'.';
+	symbolCount += 1;
+	factor = 1;
+
+	for (uint8_t factorIndex = 0; factorIndex < fractionalNumber; factorIndex++) {
+		factor *= 10;
+		uint8_t a = (uint32_t)(number * factor) % 10;
+		strArray[symbolCount + isNegativeSign] = numbers[a];
+		symbolCount += 1;
+	}
+
+	return isNegativeSign ? symbolCount + 1 : symbolCount;
 }
 
 uint8_t createJsonString(float iH, float iT, float eH, float eT, uint8_t motor, uint8_t *strArray) {
@@ -545,7 +560,7 @@ uint8_t createJsonString(float iH, float iT, float eH, float eT, uint8_t motor, 
 		message[messageLength] = sub0[index];
 		messageLength++;
 	}
-	numberLength = toIntString(iH, &numberArray[0]);
+	numberLength = numberToString(iH, &numberArray[0], 2);
 	for(uint8_t numberIndex = 0; numberIndex < numberLength; numberIndex++) {
 		message[messageLength] = numberArray[numberIndex];
 		messageLength++;
@@ -556,7 +571,7 @@ uint8_t createJsonString(float iH, float iT, float eH, float eT, uint8_t motor, 
 		message[messageLength] = sub1[index];
 		messageLength++;
 	}
-	numberLength = toIntString(iT, &numberArray[0]);
+	numberLength = numberToString(iT, &numberArray[0], 2);
 	for(uint8_t numberIndex = 0; numberIndex < numberLength; numberIndex++) {
 		message[messageLength] = numberArray[numberIndex];
 		messageLength++;
@@ -567,7 +582,7 @@ uint8_t createJsonString(float iH, float iT, float eH, float eT, uint8_t motor, 
 		message[messageLength] = sub2[index];
 		messageLength++;
 	}
-	numberLength = toIntString(eH, &numberArray[0]);
+	numberLength = numberToString(eH, &numberArray[0], 2);
 	for(uint8_t numberIndex = 0; numberIndex < numberLength; numberIndex++) {
 		message[messageLength] = numberArray[numberIndex];
 		messageLength++;
@@ -578,7 +593,7 @@ uint8_t createJsonString(float iH, float iT, float eH, float eT, uint8_t motor, 
 		message[messageLength] = sub3[index];
 		messageLength++;
 	}
-	numberLength = toIntString(eT, &numberArray[0]);
+	numberLength = numberToString(eT, &numberArray[0], 2);
 	for(uint8_t numberIndex = 0; numberIndex < numberLength; numberIndex++) {
 		message[messageLength] = numberArray[numberIndex];
 		messageLength++;
@@ -589,7 +604,7 @@ uint8_t createJsonString(float iH, float iT, float eH, float eT, uint8_t motor, 
 		message[messageLength] = sub4[index];
 		messageLength++;
 	}
-	numberLength = toIntString((float)(motor), &numberArray[0]);
+	numberLength = numberToString((float)(motor), &numberArray[0], 0);
 	for(uint8_t numberIndex = 0; numberIndex < numberLength; numberIndex++) {
 		message[messageLength] = numberArray[numberIndex];
 		messageLength++;
@@ -648,10 +663,10 @@ void sendSuccesBluetoothMessage(type_result results) {
 		motor = 1;
 	}
 	uint8_t messageLength = createJsonString(
-			results.abs_internalHumidity * (float)100,
-			results.internalTemperature * (float)100,
-			results.abs_externalHumidity * (float)100,
-			results.externalTemperature * (float)100,
+			results.abs_internalHumidity,
+			results.internalTemperature,
+			results.abs_externalHumidity,
+			results.externalTemperature,
 			motor,
 			&message[0]
 	);
