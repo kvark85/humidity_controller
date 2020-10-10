@@ -65,7 +65,6 @@ void Error_Handler(void);
 #define LCD_RESET_Pin GPIO_PIN_13
 #define LCD_RESET_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
-
 #define NUM_SAMPLES 3
 #define TIME_SCAN_SENSOR 3000
 

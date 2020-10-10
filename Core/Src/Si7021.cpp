@@ -1,5 +1,7 @@
 #include "Si7021.h"
 
+extern UART_HandleTypeDef huart2;
+
 Si7021::Si7021(I2C_HandleTypeDef *hi2c) {
 	this->hi2c = hi2c;
 }
@@ -7,22 +9,36 @@ Si7021::Si7021(I2C_HandleTypeDef *hi2c) {
 void Si7021::measureTemperatureAndHumidity(void) {
 	measuredSuccessful = false;
 
+#ifdef DEBUG
+	HAL_UART_Transmit(&huart2, (uint8_t*)"s.1_", (sizeof "s.1_") - 1, 100);
+#endif
+
 	/* Temperature ---->; */
 	HAL_I2C_Mem_Read(hi2c, HTU21D_Adress, temperature_Cmd,
-	I2C_MEMADD_SIZE_8BIT, (uint8_t*) RX_Data, 3, 1000);
+			I2C_MEMADD_SIZE_8BIT, (uint8_t*) RX_Data, 3, 1000);
 	ADC_Raw = ((uint16_t) (RX_Data[0] << 8) | (RX_Data[1]));
 	temperature = (float) (ADC_Raw * 175.72 / 65536.00) - 46.85;
 
 	if (checkCRC8(ADC_Raw) == RX_Data[2] && RX_Data[2] != 0) {
 		HAL_Delay(100);
 
+#ifdef DEBUG
+		HAL_UART_Transmit(&huart2, (uint8_t*)"s.2_ ", (sizeof "s.2_ ") - 1, 100);
+#endif
+
 		/* Humidity ---->; */
 		HAL_I2C_Mem_Read(hi2c, HTU21D_Adress, humidity_Cmd,
-		I2C_MEMADD_SIZE_8BIT, (uint8_t*) RX_Data, 3, 1000);
+				I2C_MEMADD_SIZE_8BIT, (uint8_t*) RX_Data, 3, 1000);
 		ADC_Raw = ((uint16_t) (RX_Data[0] << 8) | (RX_Data[1]));
 		humidity = (float) (ADC_Raw * 125.0 / 65536.0) - 6.0;
 
 		if (checkCRC8(ADC_Raw) == RX_Data[2] && RX_Data[2] != 0) {
+
+#ifdef DEBUG
+			HAL_UART_Transmit(&huart2, (uint8_t*)"s.3", (sizeof "s.3") - 1, 100);
+			HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, 100);
+#endif
+
 			measuredSuccessful = true;
 		}
 	}
