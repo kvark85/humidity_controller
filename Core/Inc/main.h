@@ -1,22 +1,22 @@
 /* USER CODE BEGIN Header */
 /**
- ******************************************************************************
- * @file           : main.h
- * @brief          : Header for main.c file.
- *                   This file contains the common defines of the application.
- ******************************************************************************
- * @attention
- *
- * <h2><center>&copy; Copyright (c) 2020 STMicroelectronics.
- * All rights reserved.</center></h2>
- *
- * This software component is licensed by ST under BSD 3-Clause license,
- * the "License"; You may not use this file except in compliance with the
- * License. You may obtain a copy of the License at:
- *                        opensource.org/licenses/BSD-3-Clause
- *
- ******************************************************************************
- */
+  ******************************************************************************
+  * @file           : main.h
+  * @brief          : Header for main.c file.
+  *                   This file contains the common defines of the application.
+  ******************************************************************************
+  * @attention
+  *
+  * <h2><center>&copy; Copyright (c) 2020 STMicroelectronics.
+  * All rights reserved.</center></h2>
+  *
+  * This software component is licensed by ST under BSD 3-Clause license,
+  * the "License"; You may not use this file except in compliance with the
+  * License. You may obtain a copy of the License at:
+  *                        opensource.org/licenses/BSD-3-Clause
+  *
+  ******************************************************************************
+  */
 /* USER CODE END Header */
 
 /* Define to prevent recursive inclusion -------------------------------------*/
@@ -62,26 +62,12 @@ void Error_Handler(void);
 #define LED1_GPIO_Port GPIOC
 #define MOTOR_Pin GPIO_PIN_12
 #define MOTOR_GPIO_Port GPIOB
-#define LCD_RESET_Pin GPIO_PIN_13
-#define LCD_RESET_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 #define NUM_SAMPLES 3
 #define TIME_SCAN_SENSOR 3000
-
 #define d_HUMIDITY 0.2
-#define ROW_1 15
-#define TABLE_ROW_0 30
-#define TABLE_ROW_1 42
-#define TABLE_ROW_2 54
-#define TABLE_COLUMN_1 0
-#define TABLE_COLUMN_2 63
-#define TABLE_COLUMN_3 95
-
-#define CLEAR_CELL_1_1() display.fillRect(TABLE_COLUMN_2 + 2, TABLE_ROW_1, 29, 8, WHITE)
-#define CLEAR_CELL_1_2() display.fillRect(TABLE_COLUMN_3 + 2, TABLE_ROW_1, 29, 8, WHITE)
-#define CLEAR_CELL_2_1() display.fillRect(TABLE_COLUMN_2 + 2, TABLE_ROW_2, 29, 8, WHITE)
-#define CLEAR_CELL_2_2() display.fillRect(TABLE_COLUMN_3 + 2, TABLE_ROW_2, 29, 8, WHITE)
-//#define dH_OFF 0.15 // Гистерезис абсолютной влажности
+#define motorStart() HAL_GPIO_WritePin(MOTOR_GPIO_Port, MOTOR_Pin, GPIO_PIN_SET)
+#define motorStop() HAL_GPIO_WritePin(MOTOR_GPIO_Port, MOTOR_Pin, GPIO_PIN_RESET)
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

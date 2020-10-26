@@ -10,10 +10,13 @@ void Si7021::measureTemperatureAndHumidity(void) {
 	measuredSuccessful = false;
 
 #ifdef DEBUG
-	HAL_UART_Transmit(&huart2, (uint8_t*)"s.1_", (sizeof "s.1_") - 1, 100);
+	HAL_UART_Transmit(&huart2, (uint8_t*)"s.1 ", (sizeof "s.1 ") - 1, 100);
 #endif
 
 	/* Temperature ---->; */
+	RX_Data[0] = 0;
+	RX_Data[1] = 0;
+	RX_Data[2] = 0;
 	HAL_I2C_Mem_Read(hi2c, HTU21D_Adress, temperature_Cmd,
 			I2C_MEMADD_SIZE_8BIT, (uint8_t*) RX_Data, 3, 1000);
 	ADC_Raw = ((uint16_t) (RX_Data[0] << 8) | (RX_Data[1]));
@@ -23,10 +26,13 @@ void Si7021::measureTemperatureAndHumidity(void) {
 		HAL_Delay(100);
 
 #ifdef DEBUG
-		HAL_UART_Transmit(&huart2, (uint8_t*)"s.2_ ", (sizeof "s.2_ ") - 1, 100);
+		HAL_UART_Transmit(&huart2, (uint8_t*)"s.2 ", (sizeof "s.2 ") - 1, 100);
 #endif
 
 		/* Humidity ---->; */
+		RX_Data[0] = 0;
+		RX_Data[1] = 0;
+		RX_Data[2] = 0;
 		HAL_I2C_Mem_Read(hi2c, HTU21D_Adress, humidity_Cmd,
 				I2C_MEMADD_SIZE_8BIT, (uint8_t*) RX_Data, 3, 1000);
 		ADC_Raw = ((uint16_t) (RX_Data[0] << 8) | (RX_Data[1]));
@@ -35,8 +41,7 @@ void Si7021::measureTemperatureAndHumidity(void) {
 		if (checkCRC8(ADC_Raw) == RX_Data[2] && RX_Data[2] != 0) {
 
 #ifdef DEBUG
-			HAL_UART_Transmit(&huart2, (uint8_t*)"s.3", (sizeof "s.3") - 1, 100);
-			HAL_UART_Transmit(&huart2, (uint8_t*)"\r\n", 2, 100);
+			HAL_UART_Transmit(&huart2, (uint8_t*)"s.3\r\n", (sizeof "s.3\r\n") - 1, 100);
 #endif
 
 			measuredSuccessful = true;
