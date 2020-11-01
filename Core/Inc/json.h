@@ -11,9 +11,6 @@
 #include "main.h"
 #include "Si7021.h"
 
-#define TOP 1
-#define BOTTOM 0
-
 class JSON {
 public:
 	static uint8_t numberToString(float number, uint8_t *strArray, uint8_t fractionalNumber);
