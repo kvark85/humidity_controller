@@ -145,7 +145,11 @@ uint8_t I2C::read_byte (uint8_t ack)
 bool I2C::readInHoldMode(uint8_t address, uint8_t comand, uint8_t *dataArray, uint8_t length, uint16_t timeout) {
 
 	if(!HAL_GPIO_ReadPin(i2cPort, sclPin) || !HAL_GPIO_ReadPin(i2cPort, sdaPin)) {
+		this->start();
+		HAL_Delay(1);
 		this->stop();
+		HAL_Delay(1);
+
 		return false;
 	}
 
