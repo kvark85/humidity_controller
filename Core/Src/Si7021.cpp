@@ -62,19 +62,20 @@ si7021 Si7021::measureTemperature(void) {
 }
 
 void Si7021::measureTemperatureAndHumidity(void) {
-	si7021 humidityResult = measureHumidity();
+	si7021 relativeHumidityResult = measureHumidity();
 	HAL_Delay(100);
 	si7021 temperatureResult = measureTemperature();
-	HAL_Delay(100);
 
-	if(humidityResult.measuredSuccessful && temperatureResult.measuredSuccessful) {
+	if(relativeHumidityResult.measuredSuccessful && temperatureResult.measuredSuccessful) {
 		measuredSuccessful = true;
-		humidity = humidityResult.value;
 		temperature = temperatureResult.value;
+		relativeHumidity = relativeHumidityResult.value;
+		absoluteHumidity = calculationAbsH(temperature, relativeHumidity);
 	} else {
 		measuredSuccessful = false;
-		humidity = 0;
 		temperature = 0;
+		relativeHumidity = 0;
+		absoluteHumidity = 0;
 	}
 }
 
@@ -88,10 +89,20 @@ uint8_t Si7021::checkCRC8(uint16_t data) {
 	return data >>= 8;
 }
 
+float Si7021::calculationAbsH(float t, float h) {
+	float temp;
+	temp = pow(2.718281828, (17.67 * t) / (t + 243.5));
+	return (6.112 * temp * h * 2.1674) / (273.15 + t);
+}
+
 float Si7021::getTemperature(void) {
 	return temperature;
 }
 
-float Si7021::getHumidity(void) {
-	return humidity;
+float Si7021::getRelativeHumidity(void) {
+	return relativeHumidity;
+}
+
+float Si7021::getAbsoluteHumidity(void) {
+	return absoluteHumidity;
 }

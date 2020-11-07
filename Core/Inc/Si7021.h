@@ -3,6 +3,7 @@
 
 #include "main.h"
 #include "programI2C.h"
+#include "math.h"
 
 /**
  * @brief value from sensor
@@ -22,15 +23,18 @@ class Si7021 {
 private:
 	I2C *i2c;
 	float temperature;
-	float humidity;
+	float relativeHumidity;
+	float absoluteHumidity;
 	si7021 measureHumidity(void);
 	si7021 measureTemperature(void);
 	uint8_t checkCRC8(uint16_t data);
+	float calculationAbsH(float t, float h);
 public:
 	bool measuredSuccessful = false;
 	Si7021(I2C *i2c);
 	void measureTemperatureAndHumidity(void);
 	float getTemperature(void);
-	float getHumidity(void);
+	float getRelativeHumidity(void);
+	float getAbsoluteHumidity(void);
 };
 #endif

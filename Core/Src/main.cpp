@@ -24,7 +24,6 @@
 /* USER CODE BEGIN Includes */
 #include "json.h"
 #include "programI2C.h"
-#include "math.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,29 +44,17 @@
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-typedef struct {
-	uint8_t num; // сколько отсчетов уже сложили не болле NUM_SAMPLES
-	float sum_internalTemperature; // Сумма для усреднения Текущие температуры в сотых градуса !!! место экономим
-	float sum_externalTemperature; // Сумма для усреднения Текущие температуры в сотых градуса !!! место экономим
-	float sum_internalHumidity; // Сумма для усреднения Относительные влажности сотых процента !!! место экономим
-	float sum_externalHumidity; // Сумма для усреднения Относительные влажности сотых процента !!! место экономим
-} type_sensors; // структура для усреднения
+float sum_internalAbsoluteHumidity = 0;
+float sum_externalAbsoluteHumidity = 0;
+float averageInternalAbsoluteHumidity = 0;
+float averageExternalAbsoluteHumidity = 0;
 
-typedef struct {
-	float internalTemperature;
-	float externalTemperature;
-	float internalHumidity;
-	float externalHumidity;
-	float abs_internalHumidity; // Абсолютные влажности в граммах на м*3
-	float abs_externalHumidity; // Абсолютные влажности в граммах на м*3
-} type_result;
+uint8_t averageCounter = 0;
 
 I2C internalI2C = I2C(INTERNAL_SCL_Pin, INTERNAL_SDA_Pin, INTERNAL_SDA_GPIO_Port);
 I2C externalI2C = I2C(EXTERNAL_SCL_Pin, EXTERNAL_SDA_Pin, EXTERNAL_SDA_GPIO_Port);
 Si7021 internalSensor = Si7021(&internalI2C);
 Si7021 externalSensor = Si7021(&externalI2C);
-type_sensors sensors;
-type_result results;
 uint8_t message[100] = {};
 /* USER CODE END PV */
 
@@ -82,9 +69,7 @@ void CheckON(void);
 void initLcd(void);
 uint8_t numberToString(float number, uint8_t *strArray, uint8_t fractionalNumber);
 uint8_t createJsonString(float iH, float iT, float eH, float eT, uint8_t motor, uint8_t *strArray);
-void showSuccesMeasuringOnLcd(type_result results);
 void sendBluetoothMessage(Si7021 internalSensor, Si7021 externalSensor);
-void showErrorOnLcd(Si7021 externalSensor, Si7021 internalSensor);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -133,8 +118,8 @@ int main(void)
 		HAL_UART_Transmit(&huart2, (uint8_t*)"1) ***** start *****\r\n", (sizeof "1) ***** start *****\r\n") - 1, 100);
 #endif
 
-		externalSensor.measureTemperatureAndHumidity();
 		internalSensor.measureTemperatureAndHumidity();
+		externalSensor.measureTemperatureAndHumidity();
 
 #ifdef DEBUG
 		if (!externalSensor.measuredSuccessful) {
@@ -146,9 +131,9 @@ int main(void)
 #endif
 
 		if (
-				externalSensor.measuredSuccessful
-				&&
 				internalSensor.measuredSuccessful
+				&&
+				externalSensor.measuredSuccessful
 		) {
 			// all measuring are successful
 
@@ -156,34 +141,26 @@ int main(void)
 			HAL_UART_Transmit(&huart2, (uint8_t*)"2) sensors have been read\r\n", (sizeof "2) sensors have been read\r\n") - 1, 100);
 #endif
 
-			if (sensors.num < NUM_SAMPLES) {
+			if (averageCounter < NUM_SAMPLES) {
 
 #ifdef DEBUG
 				HAL_UART_Transmit(&huart2, (uint8_t*)"3) summation to calculate averages\r\n", (sizeof "3) summation to calculate averages\r\n") - 1, 100);
 #endif
 
 				// add the measured values for averaging
-				sensors.sum_externalTemperature += externalSensor.getTemperature();
-				sensors.sum_internalTemperature += internalSensor.getTemperature();
-				sensors.sum_externalHumidity += externalSensor.getHumidity();
-				sensors.sum_internalHumidity += internalSensor.getHumidity();
-				sensors.num++;
+				sum_internalAbsoluteHumidity += internalSensor.getAbsoluteHumidity();
+				sum_externalAbsoluteHumidity += externalSensor.getAbsoluteHumidity();
+				averageCounter++;
 			}
 
-			if (sensors.num >= NUM_SAMPLES) {
+			if (averageCounter >= NUM_SAMPLES) {
 
 #ifdef DEBUG
 				HAL_UART_Transmit(&huart2, (uint8_t*)"4) calculating average\r\n", (sizeof "4) calculating average\r\n") - 1, 100);
 #endif
 				// calculate the average values
-				results.externalTemperature = sensors.sum_externalTemperature / (float)NUM_SAMPLES;
-				results.internalTemperature = sensors.sum_internalTemperature / (float)NUM_SAMPLES;
-				results.externalHumidity = sensors.sum_externalHumidity / (float)NUM_SAMPLES;
-				results.internalHumidity = sensors.sum_internalHumidity / (float)NUM_SAMPLES;
-				results.abs_externalHumidity = calculationAbsH(
-						results.externalTemperature, results.externalHumidity);
-				results.abs_internalHumidity = calculationAbsH(
-						results.internalTemperature, results.internalHumidity);
+				averageInternalAbsoluteHumidity = sum_internalAbsoluteHumidity / (float)NUM_SAMPLES;
+				averageExternalAbsoluteHumidity = sum_externalAbsoluteHumidity / (float)NUM_SAMPLES;
 
 				CheckON(); // Проверка статуса вентилятора
 				reset_sum();
@@ -326,11 +303,9 @@ static void MX_GPIO_Init(void)
 /* USER CODE BEGIN 4 */
 void reset_sum(void)  // Сброс счетчиков накоплений
 {
-	sensors.num = 0;
-	sensors.sum_internalTemperature = 0;
-	sensors.sum_externalTemperature = 0;
-	sensors.sum_internalHumidity = 0;
-	sensors.sum_externalHumidity = 0;
+	averageCounter = 0;
+	sum_internalAbsoluteHumidity = 0;
+	sum_externalAbsoluteHumidity = 0;
 }
 
 float calculationAbsH(float t, float h) {
@@ -342,14 +317,14 @@ float calculationAbsH(float t, float h) {
 void CheckON(void) {
 	if (HAL_GPIO_ReadPin(MOTOR_GPIO_Port, MOTOR_Pin) == GPIO_PIN_RESET) {
 		// Вентилятор выключен
-		if ((results.abs_internalHumidity - d_HUMIDITY)
-				> results.abs_externalHumidity) {
+		if ((averageInternalAbsoluteHumidity - d_HUMIDITY)
+				> averageExternalAbsoluteHumidity) {
 			motorStart();
 
 		}
 	} else {
 		// Вентилятор включен
-		if (results.abs_internalHumidity < results.abs_externalHumidity) {
+		if (averageInternalAbsoluteHumidity < averageExternalAbsoluteHumidity) {
 			motorStop();
 		}
 	}

@@ -8,9 +8,9 @@
 #include "json.h"
 
 uint8_t* subStrings[] = {
-		(uint8_t*)"{\"internal\":",
-		(uint8_t*)",\"external\":",
-		(uint8_t*)",\"motor\":",
+		(uint8_t*)"{\"i\":",
+		(uint8_t*)",\"e\":",
+		(uint8_t*)",\"m\":",
 		(uint8_t*)"}\r\n",
 };
 
@@ -77,9 +77,10 @@ uint8_t JSON::numberToString(float number, uint8_t *strArray, uint8_t fractional
 
 uint8_t JSON::sideInfo(Si7021 sensor, uint8_t *strArray) {
 	// "error"
-	// {"H":1.23,"T":33.33}
+	// {"rH":1.23,"aH":1.23,"T":33.33}
 	uint8_t* sideSubStrings[] = {
-			(uint8_t*)"{\"H\":",
+			(uint8_t*)"{\"rH\":",
+			(uint8_t*)",\"aH\":",
 			(uint8_t*)",\"T\":",
 			(uint8_t*)"}"
 	};
@@ -99,13 +100,26 @@ uint8_t JSON::sideInfo(Si7021 sensor, uint8_t *strArray) {
 	}
 
 	//---------------------------------------------------------------------------------------------------------
-	// "{'H':"
+	// "{'rH':"
 	while(sideSubStrings[0][substringIndex] != '\0') {
 		strArray[messageLength] = sideSubStrings[0][substringIndex];
 		messageLength++;
 		substringIndex++;
 	}
-	numberLength = numberToString(sensor.getHumidity(), &numberArray[0], 2);
+	numberLength = numberToString(sensor.getRelativeHumidity(), &numberArray[0], 2);
+	for(uint8_t numberIndex = 0; numberIndex < numberLength; numberIndex++) {
+		strArray[messageLength] = numberArray[numberIndex];
+		messageLength++;
+	}
+	//---------------------------------------------------------------------------------------------------------
+	// ",'aH\':"
+	substringIndex = 0;
+	while(sideSubStrings[1][substringIndex] != '\0') {
+		strArray[messageLength] = sideSubStrings[1][substringIndex];
+		messageLength++;
+		substringIndex++;
+	}
+	numberLength = numberToString(sensor.getAbsoluteHumidity(), &numberArray[0], 2);
 	for(uint8_t numberIndex = 0; numberIndex < numberLength; numberIndex++) {
 		strArray[messageLength] = numberArray[numberIndex];
 		messageLength++;
@@ -113,8 +127,8 @@ uint8_t JSON::sideInfo(Si7021 sensor, uint8_t *strArray) {
 	//---------------------------------------------------------------------------------------------------------
 	// ",'T\':"
 	substringIndex = 0;
-	while(sideSubStrings[1][substringIndex] != '\0') {
-		strArray[messageLength] = sideSubStrings[1][substringIndex];
+	while(sideSubStrings[2][substringIndex] != '\0') {
+		strArray[messageLength] = sideSubStrings[2][substringIndex];
 		messageLength++;
 		substringIndex++;
 	}
@@ -125,7 +139,7 @@ uint8_t JSON::sideInfo(Si7021 sensor, uint8_t *strArray) {
 	}
 	//---------------------------------------------------------------------------------------------------------
 	// "}"
-	strArray[messageLength] = sideSubStrings[2][0];
+	strArray[messageLength] = sideSubStrings[3][0];
 	messageLength++;
 
 	//---------------------------------------------------------------------------------------------------------
